@@ -1,0 +1,8 @@
+<?php
+
+require_once('ndt.fields.inc');
+require_once('ndt.taxonomy.inc');
+require_once('ndt.nodes.inc');
+require_once('ndt.files.inc');
+require_once('ndt.xml.inc');
+require_once('ndt.queries.inc');

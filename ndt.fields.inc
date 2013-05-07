@@ -1,0 +1,382 @@
+<?php
+
+/**
+ * Add a value to a Drupal field
+ *
+ * @param Entity $entity
+ *         Entity to examine
+ * @param string $field_name
+ *         Name of the field
+ * @param string $value_struct
+ *         Array with value to store formatted for this field
+ * @param string $lang
+ *         Language Code
+ */
+/*
+function ndt_add_field_value($entity, $field_name, $value_struct, $lang=null)
+{
+    // Create field container
+    $field = array();
+    if (isset($entity->$field_name))
+        $field = $entity->$field_name;
+
+    // Create language container
+    if (is_null($lang))
+        $lang = LANGUAGE_NONE;
+    if (!isset($field[$lang]))
+        $field[$lang] = array();
+
+    // Create delta
+    $delta = count($field[$lang]);
+    while (isset($field[$lang][$delta]))
+        $delta += 1;
+    $field[$lang][$delta] = $value_struct;
+
+    // Save new value
+    $entity->$field_name = $field;
+}
+*/
+
+/**
+ * Clear all values from a field
+ *
+ * @param Entity $entity
+ *         Entity to examine
+ * @param string $field_name
+ *         Name of the field
+ */
+/*
+function ndt_clear_field_values($entity, $field_name)
+{
+    if (isset($entity->$field_name))
+    {
+        $field =& $entity->$field_name;
+        foreach ($field as $lang => $values)
+            $field[$lang] = array();
+    }
+}
+*/
+
+/**
+ * Examine a Drupal field to extract values
+ *
+ * @param Entity $entity
+ *     Entity to examine
+ * @param string $field_name
+ *     Name of the field to extract value for (with field_ prefix)
+ * @param string $value_key
+ *     Array key that stores the value we want to extract
+ * @return array
+ *     Array of extracted values
+ */
+function ndt_extract_field_values($entity, $field_name, $value_key)
+{
+    // Entity API way:
+    $rtn = array();
+    $entity = entity_metadata_wrapper('node', $entity);
+    $field = $entity->$field_name;
+    foreach ($field->getIterator() as $value)
+        $rtn[] = $value->value()->$value_key;
+  
+    return $rtn;
+}
+
+/**
+ * Examine a Drupal field to extract values
+ *
+ * @param Entity $entity
+ *     Entity to examine
+ * @param string $field_name
+ *     Name of the field to extract value for (with field_ prefix)
+ * @param string $value_key
+ *     Array key that stores the value we want to extract
+ * @return array
+ *     Array of extracted values
+ */
+function ndt_extract_field_values_without_entity($entity, $field_name, $value_key)
+{
+    $rtn = array();
+
+    if (isset($entity->$field_name))
+    {
+        $field = $entity->$field_name;
+        foreach ($field as $lang_code => $values)
+            foreach ($values as $delta => $value)
+                if (isset($value[$value_key]))
+                    $rtn[$delta] = $value[$value_key];
+    }
+
+    return $rtn;
+}
+
+
+/**
+ * Examine a Drupal field to extract a single value
+ *
+ * @param Entity $entity
+ *         Entity to examine
+ * @param string $field_name
+ *         Name of the field to extract value for (with field_ prefix)
+ * @param string $value_key
+ *         Array key that stores the value we want to extract
+ * @param mixed $default
+ *         Default value to return if nothing is stored for this field
+ * @return mixed
+ *         Value stored for this field
+ */
+function ndt_extract_field_value($entity, $field_name, $value_key, $default=null)
+{
+    // Run Entity API way
+    $entity = entity_metadata_wrapper('node', $entity);
+    $field = $entity->$field_name;
+    if ($field->count() > 1)
+    {
+        $msg = "Encountered %d values for field %s.  Expected only 1";
+        $msg = sprintf($msg, $field->count(), $field_name);
+        throw new Exception($msg);
+    }
+    return $field->value();
+}
+
+
+/**
+ * Examine a Drupal field to extract a single value
+ *
+ * @param Entity $entity
+ *         Entity to examine
+ * @param string $field_name
+ *         Name of the field to extract value for (with field_ prefix)
+ * @param string $value_key
+ *         Array key that stores the value we want to extract
+ * @param mixed $default
+ *         Default value to return if nothing is stored for this field
+ * @return mixed
+ *         Value stored for this field
+ */
+function ndt_extract_field_value_without_entity($entity, $field_name,
+    $value_key, $default=null)
+{
+    $values = ndt_extract_field_values_without_entity(
+        $entity, $field_name, $value_key);
+    if (count($values) == 0)
+        return $default;
+    elseif (count($values) == 1)
+        return reset($values);
+    else
+    {
+        $cnt = count($values);
+        throw new Exception(
+            "Expected exacly 1 value for field $field_name, but got $cnt");
+    }
+}
+
+/**
+ * Examine a Drupal field to see if any values are stored
+ *
+ * @param Entity $entity
+ *         Entity to examine
+ * @param string $field_name
+ *         Name of the field to extract value for (with field_ prefix)
+     * @param string $value_key
+ *         Array key that stores the value we want to extract
+ * @return mixed
+ *         Value stored for this field
+ */
+function ndt_field_has_values($entity, $field_name, $value_key)
+{
+    $values = ndt_extract_field_values($entity, $field_name, $value_key);
+    return count($values) > 0;
+}
+
+// -- String Reference fields -------------------------------------------------
+
+/**
+ * Get string values
+ *
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of string values
+ */
+function ndt_get_str_values($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'value') as $val)
+        $rtn[] = $val;
+    return $rtn;
+}
+function ndt_get_str_value($entity, $field_name, $default=null)
+{
+    return ndt_extract_field_value($entity, $field_name, 'value', $default);
+}
+function ndt_has_str_values($entity, $field_name)
+{
+    return count(ndt_get_str_values($entity, $field_name)) > 0;
+}
+function ndt_count_str_values($entity, $field_name)
+{
+    $cnt = 0;
+    foreach (ndt_get_str_values($entity, $field_name) as $value)
+        if (strlen(trim($value)) > 0)
+            $cnt += 1;
+    return $cnt;
+}
+function ndt_add_str_value($entity, $field_name, $value)
+{
+    $entity = entity_metadata_wrapper('node', $entity);
+    $field = $entity->$field_name;
+    $field[] = $value;
+    
+    drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
+        $field_name, $value, $entity->nid->value()));
+    
+    /*  Pre Entity API method:
+    ndt_add_field_value($entity, $field_name, array('value' => $value));
+    */
+}
+
+
+// -- Term Reference fields ---------------------------------------------------
+
+/**
+ * Get term reference values
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of term IDs
+ */
+function ndt_get_termref_values($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'tid') as $tid)
+        $rtn[] = $tid;
+    return $rtn;
+}
+function ndt_has_termref_values($entity, $field_name)
+{
+    return count(ndt_get_termref_values($entity, $field_name)) > 0;
+}
+function ndt_add_termref_value($entity, $field_name, $tid)
+{
+    $entity = entity_metadata_wrapper('node', $entity);
+    $field = $entity->$field_name;
+    $field[] = $tid;
+    
+    drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
+        $field_name, $tid, $entity->nid->value()));
+    
+    /*  Pre Entity API method:
+    ndt_add_field_value($entity, $field_name, array('tid' => $tid));
+    */
+}
+
+
+// -- Entity Reference fields -------------------------------------------------
+
+/**
+ * Get entity reference values
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of term IDs
+ */
+function ndt_get_entityref_values($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'target_id') as $eid)
+        $rtn[] = $eid;
+    return $rtn;
+}
+function ndt_get_entityref_nodes($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_get_entityref_values($entity, $field_name) as $eid)
+        $rtn = node_load($eid);
+    return $eid;
+}
+function ndt_get_entityref_node($entity, $field_name)
+{
+    foreach (ndt_get_entityref_values($entity, $field_name) as $eid)
+        return node_load($eid);
+}
+function ndt_has_entityref_values($entity, $field_name)
+{
+    return count(ndt_get_entityref_values($entity, $field_name)) > 0;
+}
+function ndt_add_entityref_value($entity, $field_name, $eid)
+{
+    $entity = entity_metadata_wrapper('node', $entity);
+    $field = $entity->$field_name;
+    $field[] = $eid;
+    
+    drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
+        $field_name, $eid, $entity->nid->value()));
+    
+    /*  Pre Entity API method:
+    ndt_add_field_value($entity, $field_name, array('target_id' => $eid));
+    */
+}
+
+
+// -- File Fields -------------------------------------------------------------
+
+/**
+ * Get File ID values
+ *
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of string values
+ */
+function ndt_get_file_fid_values($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'fid') as $val)
+        $rtn[] = $val;
+    return $rtn;
+}
+
+/**
+ * Get File URI values
+ *
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of string values
+ */
+function ndt_get_file_uri_values($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'uri') as $val)
+        $rtn[] = $val;
+    return $rtn;
+}
+
+/**
+ * Get File Paths (on disk paths)
+ *
+ * @param Entity $entity
+ *         Entity with term reference
+ * @param string $field_name
+ *         Field name to extract value from
+ * @return array
+ *         Array of string values
+ */
+function ndt_get_file_field_paths($entity, $field_name)
+{
+    $rtn = array();
+    foreach (ndt_extract_field_values($entity, $field_name, 'uri') as $val)
+        $rtn[] = drupal_realpath($val);
+    return $rtn;
+}
+
