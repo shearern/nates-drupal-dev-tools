@@ -190,7 +190,36 @@ function ndt_join_term_to_termref_field($query, $field_name, $field_tab_alias,
 }
 
 /**
- * Modify a qurey to join term reference fields to the taxonomy_term_data table
+ * Modify a query to join the term_data table to a node table through a
+ * term reference field.
+ * 
+ * This is a proxy to call in sequence: 
+ *     1) ndt_join_field_data_to_node() 
+ *     2) ndt_join_term_to_termref_field()
+ *     
+ * @param string $node_tab_alias:
+ *     Alias already node table that is the left side of the join
+ * @param string $field_name:
+ *     Name of the field of interest
+ * @param string $field_tab_alias:
+ *     Alias to assign to field table (right side of join) in the query 
+ * @param string $term_tab_alias:
+ *     Alias to assign to term table (right side of join) in the query
+ * @param string $entity_type:
+ *     Specify the entity_type used to isolate the entity_id to a specific
+ *     entity type.  Defaults to 'node'
+ */
+function join_term_through_termref_field($query, $node_tab_alias,
+    $field_name, $field_tab_alias, $term_tab_alias, $entity_type='node')
+{ 
+    ndt_join_field_data_to_node($query, $node_tab_alias,
+        $field_name, $field_tab_alias, null, $entity_type);
+    ndt_join_term_to_termref_field($query, $field_name, $field_tab_alias,
+        $term_tab_alias);
+}
+
+/**
+ * Modify a query to join term reference fields to the taxonomy_term_data table
  * 
  * Starting from the table that contains all of the taxonomy term data, this
  * joins all references to that term from a given term reference field data
