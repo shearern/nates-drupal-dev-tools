@@ -287,6 +287,8 @@ function ndt_join_termref_fields_to_term($query, $term_tab_alias,
  *     Alias already assigned to field table (left side of join) in the query 
  * @param string $node_tab_alias:
  *     Alias to assign to node table (right side of join) in the query
+ * @param string $node_content_type:
+ *     Optionally limit the node type of the reference node
  */
 function ndt_join_node_to_entityref_field($query, $field_name, $field_tab_alias,
     $node_tab_alias, $node_content_type=null)
@@ -304,6 +306,42 @@ function ndt_join_node_to_entityref_field($query, $field_name, $field_tab_alias,
     
     $query->leftJoin('node', $node_tab_alias, $condition, $parms);
 }
+
+
+/**
+ * Modify a query to join the node table to a node table through an
+ * entity reference field.
+ * 
+ * (Nonde -> Entity Ref Field -> Node)
+ * 
+ * This is a proxy to call in sequence: 
+ *     1) ndt_join_field_data_to_node() 
+ *     2) ndt_join_node_to_entityref_field()
+ *     
+ * @param string $node_tab_alias:
+ *     Alias already node table that is the left side of the join
+ * @param string $field_name:
+ *     Name of the field of interest
+ * @param string $field_tab_alias:
+ *     Alias to assign to field table (right side of join) in the query 
+ * @param string $ref_node_tab_alias:
+ *     Alias to assign to node table (right side of join) in the query
+ * @param string $entity_type:
+ *     Specify the entity_type used to isolate the entity_id to a specific
+ *     entity type.  Defaults to 'node'
+ * @param string $node_content_type:
+ *     Optionally limit the node type of the reference node
+ */
+function join_node_through_entityref_field($query, $node_tab_alias,
+    $field_name, $field_tab_alias, $ref_node_tab_alias, $entity_type='node',
+    $node_content_type=null)
+{ 
+    ndt_join_field_data_to_node($query, $node_tab_alias,
+        $field_name, $field_tab_alias, null, $entity_type);
+    ndt_join_node_to_entityref_field($query, $field_name, $field_tab_alias,
+        $ref_node_tab_alias, $node_content_type);
+}
+
 
 /**
  * Modify a query to join in entity reference field values that relate to nodes
