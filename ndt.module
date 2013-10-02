@@ -6,3 +6,16 @@ require_once('ndt.nodes.inc');
 require_once('ndt.files.inc');
 require_once('ndt.xml.inc');
 require_once('ndt.queries.inc');
+require_once('ndt.queues.inc');
+require_once('ndt.variables.inc');
+
+function ndt_error($func, $msg)
+{
+    drupal_set_message("$func(): $msg", 'error');
+    watchdog($func, $msg, null, WATCHDOG_ERROR);
+}
+
+function ndt_cron()
+{
+    _ndt_auto_delete_variables();
+}

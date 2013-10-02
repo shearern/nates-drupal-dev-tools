@@ -415,3 +415,8 @@ function ndt_join_file_to_field($query, $field_name, $field_tab_alias,
     
     $query->leftJoin('file_managed', $file_tab_alias, $condition, $parms);
 }
+
+function ndt_run_query_as_count($query)
+{
+    return $query->countQuery()->execute()->fetchField();
+}
