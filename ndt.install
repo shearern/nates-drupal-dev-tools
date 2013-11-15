@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * Implements hook_schema()
+ */
+function ndt_schema()
+{
+    $schema['ndt_variables'] = array(
+        'description' => "Variables persisted by ndt_set()",
+        'fields' => array(
+            'value_id' => array(
+                'description'   => "Unique ID for a specific value",
+                'type'          => 'serial',
+                'unsigned'      => TRUE,
+                'not null'      => TRUE,
+            ),
+            'domain' => array(
+                'description'   => "Grouping of variables by a domain key",
+                'type'          => 'varchar',
+                'length'        => '100',
+                'not null'      => TRUE,
+            ),
+            'var_name' => array(
+                'description'   => "Name of the variable being set",
+                'type'          => 'varchar',
+                'length'        => '100',
+                'not null'      => TRUE,
+            ),
+            'var_value' => array(
+                'description'   => "Variable value (serialized)",
+                'type'          => 'text',
+                'size'          => 'normal',
+                'not null'      => TRUE,
+            ),
+            'auto_expires_at' => array(
+                'description'   => "Time that this variable will be garbage collected",
+                'type'          => 'int',
+                'unsigned'      => TRUE,
+                'not null'      => FALSE,
+            ),
+        ),
+        'primary key'  => array('value_id'),
+        'unique keys' => array(
+            'ndt_variables_varname' => array('domain', 'var_name'),
+        ),
+    );
+    
+    return $schema;
+}
