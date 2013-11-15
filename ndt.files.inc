@@ -59,3 +59,47 @@ function ndt_get_real_path($uri)
         throw new Exception("Don't know how to handle scheme $scheme");
     }
 }
+
+
+/**
+ * List all files in a directory recorsivly
+ * 
+ * @param string $search_path:
+ *      Parent directory to search
+ * @param boolean $include_dirs:
+ *      Whether to include directory entries
+ * @param boolean $include_files:
+ *      Whether to include file entries
+ * @return array:
+ *     Paths under the parent.
+ *        Files: '/dir/filename'
+ *        Dirs:  '/dir/dirname/'
+ */
+function ndt_find($search_path, $include_dirs=False, $include_files=True)
+{
+    $rtn = array();
+    
+    foreach (scandir($search_path) as $filename)
+    {
+        if ($filename != '.' and $filename != '..')
+        {
+            $full_path = "$search_path/$filename";
+            
+            if (is_file($full_path) && $include_files)
+                $rtn[] = $filename;
+            
+            elseif (is_dir($full_path))
+            {
+                // Include entry
+                if ($include_dirs)
+                    $rtn[] = "$filename/";
+                
+                // Decend into directory
+                foreach (ndt_find($full_path, $include_dirs, $include_files) as $child)
+                    $rtn[] = "$filename/$child";
+            }
+        }
+    }
+    
+    return $rtn;
+}

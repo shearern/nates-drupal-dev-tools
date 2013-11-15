@@ -15,6 +15,12 @@ function ndt_error($func, $msg)
     watchdog($func, $msg, null, WATCHDOG_ERROR);
 }
 
+function ndt_log($func, $msg)
+{
+    drupal_set_message("$msg");
+    watchdog($func, $msg, null, WATCHDOG_INFO);
+}
+
 function ndt_cron()
 {
     _ndt_auto_delete_variables();

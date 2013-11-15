@@ -12,8 +12,7 @@
  * @param string $lang
  *         Language Code
  */
-/*
-function ndt_add_field_value($entity, $field_name, $value_struct, $lang=null)
+function ndt_add_field_value(&$entity, $field_name, $value_struct, $lang=null)
 {
     // Create field container
     $field = array();
@@ -35,7 +34,6 @@ function ndt_add_field_value($entity, $field_name, $value_struct, $lang=null)
     // Save new value
     $entity->$field_name = $field;
 }
-*/
 
 /**
  * Clear all values from a field
@@ -45,8 +43,7 @@ function ndt_add_field_value($entity, $field_name, $value_struct, $lang=null)
  * @param string $field_name
  *         Name of the field
  */
-/*
-function ndt_clear_field_values($entity, $field_name)
+function ndt_clear_field_values(&$entity, $field_name)
 {
     if (isset($entity->$field_name))
     {
@@ -55,7 +52,6 @@ function ndt_clear_field_values($entity, $field_name)
             $field[$lang] = array();
     }
 }
-*/
 
 /**
  * Examine a Drupal field to extract values
@@ -71,13 +67,17 @@ function ndt_clear_field_values($entity, $field_name)
  */
 function ndt_extract_field_values($entity, $field_name, $value_key)
 {
-    // Entity API way:
     $rtn = array();
-    $entity = entity_metadata_wrapper('node', $entity);
-    $field = $entity->$field_name;
-    foreach ($field->getIterator() as $value)
-        $rtn[] = $value->value()->$value_key;
-  
+
+    if (isset($entity->$field_name))
+    {
+        $field = $entity->$field_name;
+        foreach ($field as $lang_code => $values)
+            foreach ($values as $delta => $value)
+                if (isset($value[$value_key]))
+                    $rtn[$delta] = $value[$value_key];
+    }
+
     return $rtn;
 }
 
@@ -95,18 +95,8 @@ function ndt_extract_field_values($entity, $field_name, $value_key)
  */
 function ndt_extract_field_values_without_entity($entity, $field_name, $value_key)
 {
-    $rtn = array();
-
-    if (isset($entity->$field_name))
-    {
-        $field = $entity->$field_name;
-        foreach ($field as $lang_code => $values)
-            foreach ($values as $delta => $value)
-                if (isset($value[$value_key]))
-                    $rtn[$delta] = $value[$value_key];
-    }
-
-    return $rtn;
+    // Legacy for when we were using entity wrappers
+    return ndt_extract_field_values($entity, $field_name, $value_key);
 }
 
 
@@ -126,16 +116,17 @@ function ndt_extract_field_values_without_entity($entity, $field_name, $value_ke
  */
 function ndt_extract_field_value($entity, $field_name, $value_key, $default=null)
 {
-    // Run Entity API way
-    $entity = entity_metadata_wrapper('node', $entity);
-    $field = $entity->$field_name;
-    if ($field->count() > 1)
+    $values = ndt_extract_field_values($entity, $field_name, $value_key);
+    if (count($values) == 0)
+        return $default;
+    elseif (count($values) == 1)
+        return reset($values);
+    else
     {
-        $msg = "Encountered %d values for field %s.  Expected only 1";
-        $msg = sprintf($msg, $field->count(), $field_name);
-        throw new Exception($msg);
+        $cnt = count($values);
+        throw new Exception(
+            "Expected exacly 1 value for field $field_name, but got $cnt");
     }
-    return $field->value();
 }
 
 
@@ -156,18 +147,7 @@ function ndt_extract_field_value($entity, $field_name, $value_key, $default=null
 function ndt_extract_field_value_without_entity($entity, $field_name,
     $value_key, $default=null)
 {
-    $values = ndt_extract_field_values_without_entity(
-        $entity, $field_name, $value_key);
-    if (count($values) == 0)
-        return $default;
-    elseif (count($values) == 1)
-        return reset($values);
-    else
-    {
-        $cnt = count($values);
-        throw new Exception(
-            "Expected exacly 1 value for field $field_name, but got $cnt");
-    }
+    return ndt_extract_field_value($entity, $field_name, $value_key, $default);
 }
 
 /**
@@ -188,7 +168,7 @@ function ndt_field_has_values($entity, $field_name, $value_key)
     return count($values) > 0;
 }
 
-// -- String Reference fields -------------------------------------------------
+// -- String fields -----------------------------------------------------------
 
 /**
  * Get string values
@@ -256,22 +236,17 @@ function ndt_get_termref_values($entity, $field_name)
         $rtn[] = $tid;
     return $rtn;
 }
+function ndt_get_termref_value($entity, $field_name, $default=null)
+{
+    return ndt_extract_field_value($entity, $field_name, 'tid', $default);
+}
 function ndt_has_termref_values($entity, $field_name)
 {
     return count(ndt_get_termref_values($entity, $field_name)) > 0;
 }
 function ndt_add_termref_value($entity, $field_name, $tid)
 {
-    $entity = entity_metadata_wrapper('node', $entity);
-    $field = $entity->$field_name;
-    $field[] = $tid;
-    
-    drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
-        $field_name, $tid, $entity->nid->value()));
-    
-    /*  Pre Entity API method:
     ndt_add_field_value($entity, $field_name, array('tid' => $tid));
-    */
 }
 
 
