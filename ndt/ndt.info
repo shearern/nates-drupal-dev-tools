@@ -1,6 +1,7 @@
 name = Nate's Drupal Dev Tools
 description = A library common tools for developing Drupal modules
 core = 7.x
+version = 7.0.0
 package = Development
 
 dependencies[] = field
