@@ -205,16 +205,16 @@ function ndt_count_str_values($entity, $field_name)
 }
 function ndt_add_str_value($entity, $field_name, $value)
 {
+    /*
     $entity = entity_metadata_wrapper('node', $entity);
     $field = $entity->$field_name;
     $field[] = $value;
     
     drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
         $field_name, $value, $entity->nid->value()));
-    
-    /*  Pre Entity API method:
-    ndt_add_field_value($entity, $field_name, array('value' => $value));
     */
+
+    ndt_add_field_value($entity, $field_name, array('value' => $value));
 }
 
 
@@ -286,16 +286,16 @@ function ndt_has_entityref_values($entity, $field_name)
 }
 function ndt_add_entityref_value($entity, $field_name, $eid)
 {
+    /*
     $entity = entity_metadata_wrapper('node', $entity);
     $field = $entity->$field_name;
     $field[] = $eid;
     
     drupal_set_message(sprintf("Check that adding '%s' to '%s' on %d worked",
         $field_name, $eid, $entity->nid->value()));
-    
-    /*  Pre Entity API method:
-    ndt_add_field_value($entity, $field_name, array('target_id' => $eid));
     */
+
+    ndt_add_field_value($entity, $field_name, array('target_id' => $eid));
 }
 
 
