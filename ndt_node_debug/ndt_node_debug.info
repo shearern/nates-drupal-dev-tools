@@ -1,0 +1,10 @@
+; ndt_node_debug
+
+name = "NDT - Node Debug"
+description = "Special page for examining what we can see in a node"
+package = "Development"
+core = 7.x
+
+dependencies[] = ndt
+dependencies[] = entity
+dependencies[] = devel

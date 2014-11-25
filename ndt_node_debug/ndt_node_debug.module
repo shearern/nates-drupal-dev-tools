@@ -1,0 +1,330 @@
+<?php
+
+function ndt_node_debug_menu()
+{
+    $items = array();
+
+    // menu_debug Page
+    $items['admin/config/development/menu'] = array(
+        'title' => "hook_menu debug",
+        'description' => "See what's in hook_menu",
+        'page callback' => 'ndt_node_debug_menu_debug_page',
+        'access arguments' => array('access devel information'),
+        'type' => MENU_NORMAL_ITEM,
+        //'menu_name' => 'main-menu',
+    );
+
+    // menu_debug Page
+    $items['node/%/ndt_devl'] = array(
+        'title' => "NDT Inspect Node",
+        'page arguments' => array(1),
+        'description' => "See what information ndt can pull",
+        'page callback' => 'ndt_node_debug_node_page',
+        'access arguments' => array('access devel information'),
+        'type' => MENU_LOCAL_TASK,
+        //'menu_name' => 'main-menu',
+    );
+
+    return $items;
+}
+
+function ndt_node_debug_menu_debug_page()
+{
+    $page = array();
+
+    // Get all defiend menu entries
+    $menus = menu_router_build();
+    $menus = $menus[0];
+
+    // Page Title
+    $page['title'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'h2',
+        '#value' => "hook_menu() Info",
+        );
+
+    // TOC
+    $page['toc_h2'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'h2',
+        '#value' => "Menu Entries",
+        );
+    $items = array();
+    $i = 0;
+    foreach (array_keys($menus) as $url_pat)
+    {
+        $items[] = "<a href='#item_$i'>$url_pat</a>";
+        $i += 1;
+    }
+    $page['{1:name}'] = array(
+        '#theme' => 'item_list',
+        '#items' => $items,
+        );
+
+
+    $i = 0;
+    foreach ($menus as $url_pat => $attribs)
+    {
+        $page["item_$i"] = array(
+            '#prefix' => "<a name='item_$i'>",
+            '#type' => 'html_tag',
+            '#tag' => 'h3',
+            '#value' => $url_pat,
+        );
+
+        $attribs_rows = array();
+        foreach ($attribs as $attr_name => $attr_value)
+            $attribs_rows[] = array($attr_name, var_export($attr_value, TRUE));
+        $page["attribs_$i"] = array(
+            '#theme' => 'table',
+            '#rows' => $attribs_rows,
+            '#empty' => t("No attributes"),
+            );
+
+         $i += 1;
+    }
+
+    return $page;
+}
+
+
+function ndt_node_debug_node_page($nid)
+{
+    $page = array();
+
+    // Page Title
+    $page['title'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'h2',
+        '#value' => "Nate's Drupal Development Tools: Node Inspection",
+        );
+
+    $page['nid'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#value' => "nid: $nid",
+        );
+
+    $node = node_load($nid);
+    //dpm($node, $node->title);
+
+    $page['type'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#value' => "Node Type: " . $node->type,
+        );
+
+    // Fields TOC
+    $page['fields_title'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'h3',
+        '#value' => "Fields visible to NDT",
+        );
+    $page['fields_desc'] = array(
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => "
+            These fields are visible to NDT.
+            This is discovered by calling ndt_list_node_fields(\$node)
+            See also <a href='https://api.drupal.org/api/drupal/modules%21field%21field.info.inc/function/field_info_instances/7'>field_info_instances</a>
+            and <a href='https://api.drupal.org/api/drupal/modules%21field%21field.info.inc/function/field_info_field/7'>field_info_field</a>.
+            ",
+        );
+    $fields = ndt_list_node_fields($node);
+    $items = array();
+    foreach ($fields as $field)
+    {
+        $items[] = sprintf("<a href='#%s'>%s</a> (%s:%s)",
+            $field->name, $field->name, $field->module, $field->type);
+    }
+    $page['fields_toc'] = array(
+        '#theme' => 'item_list',
+        '#items' => $items,
+        );
+
+    foreach ($fields as $field)
+    {
+        $field_name = $field->name;
+        $field_value = $node->$field_name;
+
+        $page["${field_name}_h4"] = array(
+            '#type' => 'html_tag',
+            '#tag' => 'h4',
+            '#prefix' => "<a name='$field_name'>",
+            '#value' => $field_name,
+            );
+
+
+        $attribs = array();
+
+        $attribs[] = array(t("Field Name"), $field->name);
+        $attribs[] = array(t("Type:"), $field->type);
+        $attribs[] = array(t("Module:"), $field->module);
+        $attribs[] = array(t("Label:"), $field->label);
+        $attribs[] = array(t("Raw Value"), sprintf('<pre>%s</pre>', ndt_repr($field_value)));
+        $attribs[] = array(t("Data Columns"), implode($field->columns, ", "));
+
+        // number:number_integer
+        if ($field->module == 'number' and $field->type == 'number_integer')
+        {  
+            // Has Value
+            $attribs[] = array("HAS VALUE: ndt_has_int_values(\$entity, '$field_name')",
+                ndt_repr(ndt_has_int_values($node, $field_name)));
+
+            // Count Values
+            $attribs[] = array("COUNT VALUES: ndt_count_int_values(\$entity, '$field_name')",
+                ndt_repr(ndt_count_int_values($node, $field_name)));
+
+            // Get Values
+            $attribs[] = array("GET VALUES: ndt_get_int_values(\$entity, '$field_name')",
+                ndt_repr(ndt_get_int_values($node, $field_name)));
+
+            // Get Single Value
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_int_value(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_int_value($node, $field_name)));
+
+            // Value updates
+            $attribs[] = array(t("Modifier APIs"), implode(array(
+                "ndt_add_int_value(\$entity, '$field_name', \$value)",
+                "ndt_set_int_value(\$entity, '$field_name', \$value)",
+                ), "<br />"));
+        }
+
+        // text:text
+        if ($field->module == 'text' and $field->type == 'text')
+        {  
+            // Has Value
+            $attribs[] = array("HAS VALUE: ndt_has_str_values(\$entity, '$field_name')",
+                ndt_repr(ndt_has_str_values($node, $field_name)));
+
+            // Count Values
+            $attribs[] = array("COUNT VALUES: ndt_count_str_values(\$entity, '$field_name')",
+                ndt_repr(ndt_count_str_values($node, $field_name)));
+
+            // Get Values
+            $attribs[] = array("GET VALUES: ndt_get_str_values(\$entity, '$field_name')",
+                ndt_repr(ndt_get_str_values($node, $field_name)));
+
+            // Get Single Value
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_str_value(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_str_value($node, $field_name)));
+
+            // Value updates
+            $attribs[] = array(t("Modifier APIs"), implode(array(
+                "ndt_add_str_value(\$entity, '$field_name', \$value)",
+                "ndt_set_str_value(\$entity, '$field_name', \$value)",
+                ), "<br />"));
+        }
+
+        // taxonomy:taxonomy_term_reference
+        if ($field->module == 'taxonomy' and $field->type == 'taxonomy_term_reference')
+        {  
+            // Has Value
+            $attribs[] = array("HAS VALUE: ndt_has_termref_values(\$entity, '$field_name')",
+                ndt_repr(ndt_has_termref_values($node, $field_name)));
+
+            // Get Values
+            $attribs[] = array("GET VALUES: ndt_get_termref_values(\$entity, '$field_name')",
+                ndt_repr(ndt_get_termref_values($node, $field_name)));
+            $attribs[] = array("GET VALUES: ndt_get_termref_tids(\$entity, '$field_name')",
+                ndt_repr(ndt_get_termref_tids($node, $field_name)));
+            $attribs[] = array("GET VALUES: ndt_get_termref_terms(\$entity, '$field_name')",
+                ndt_repr(ndt_get_termref_terms($node, $field_name)));
+
+            // Get Single Value
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_termref_value(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_termref_value($node, $field_name)));
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_termref_tid(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_termref_tid($node, $field_name)));
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_termref_term(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_termref_term($node, $field_name)));
+
+            // Value updates
+            $attribs[] = array(t("Modifier APIs"), implode(array(
+                "ndt_add_field_value(\$entity, '$field_name', \$value)",
+                "ndt_set_termref_value(\$entity, '$field_name', \$value)",
+                ), "<br />"));
+        }
+
+        // entityreference:entityreference
+        if ($field->module == 'entityreference' and $field->type == 'entityreference')
+        {  
+            // Has Value
+            $attribs[] = array("HAS VALUE: ndt_has_entityref_values(\$entity, '$field_name')",
+                ndt_repr(ndt_has_entityref_values($node, $field_name)));
+
+            // Get Values
+            $attribs[] = array("GET VALUES: ndt_get_entityref_values(\$entity, '$field_name')",
+                ndt_repr(ndt_get_entityref_values($node, $field_name)));
+
+            // Get Values (Nodes)
+            $entities = array();
+            foreach (ndt_get_entityref_nodes($node, $field_name) as $rentity)
+            {
+                $desc = "ENTITY: ";
+                if (isset($rentity->title))
+                    $desc .= 'title:"' . $rentity->title . '"';
+                if (isset($rentity->nid))
+                    $desc .= sprintf(" (nid:%d)", $rentity->nid);
+                $entities[] = $desc;
+            }
+            $attribs[] = array("GET VALUES: ndt_get_entityref_nodes(\$entity, '$field_name')",
+                implode($entities, "<br/>"));
+
+            // Get Single Value
+            $rentity = ndt_get_entityref_node($node, $field_name);
+            $desc = null;
+            if (!is_null($rentity))
+            {
+                $desc = "ENTITY: ";
+                if (isset($rentity->title))
+                    $desc .= 'title:"' . $rentity->title . '"';
+                if (isset($rentity->nid))
+                    $desc .= sprintf(" (nid:%d)", $rentity->nid);
+            }
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_entityref_node(\$entity, '$field_name', \$default=null)",
+                ndt_repr($desc));
+
+            // Value updates
+            $attribs[] = array(t("Modifier APIs"), implode(array(
+                "ndt_add_entityref_value(\$entity, '$field_name', \$eid)",
+                "ndt_set_field_value(\$entity, '$field_name', \$eid)",
+                ), "<br />"));
+        }
+
+        // date:datetime
+        if ($field->module == 'date' and $field->type == 'datetime')
+        {  
+            // Has Value
+            $attribs[] = array("HAS VALUE: ndt_has_date_values(\$entity, '$field_name')",
+                ndt_repr(ndt_has_date_values($node, $field_name)));
+
+            // Count Values
+            $attribs[] = array("COUNT VALUES: ndt_count_date_values(\$entity, '$field_name')",
+                ndt_repr(ndt_count_date_values($node, $field_name)));
+
+            // Get Values
+            $attribs[] = array("GET VALUES: ndt_get_date_str_values(\$entity, '$field_name')",
+                ndt_repr(ndt_get_date_str_values($node, $field_name)));
+
+            // Get Single Value
+            $attribs[] = array("GET SINGLE VALUE: ndt_get_date_str_value(\$entity, '$field_name', \$default=null)",
+                ndt_repr(ndt_get_date_str_value($node, $field_name)));
+
+            // Value updates
+            $attribs[] = array(t("Modifier APIs"), implode(array(
+                "ndt_add_date_str_value(\$entity, '$field_name', \$value)",
+                "ndt_set_date_str_value(\$entity, '$field_name', \$value)",
+                ), "<br />"));
+        }
+
+        $attribs[] = array(t("Field Info"), sprintf('<pre>%s</pre>', ndt_repr(field_info_field($field_name))));
+
+        $page["${field_name}_attribs"] = array(
+            '#theme' => 'table',
+            '#rows' => $attribs,
+            );
+
+    }
+    return $page;
+}
